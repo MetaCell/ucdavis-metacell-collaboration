@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+dependencies:
+  - minian == 1.2.1
+  - plotly
+  - seaborn

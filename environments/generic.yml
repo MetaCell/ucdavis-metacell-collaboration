@@ -1,0 +1,20 @@
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - jupyter
+  - numpy
+  - scipy
+  - scikit-learn
+  - pandas
+  - xarray
+  - netcdf4
+  - plotly
+  - matplotlib
+  - seaborn
+  - pyarrow
+  - dask
+  - holoviews
+  - colorcet
+  - opencv
+  - scikit-image
