@@ -4,3 +4,4 @@ dependencies:
   - minian == 1.2.1
   - plotly
   - seaborn
+  - beartype
