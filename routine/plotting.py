@@ -28,7 +28,10 @@ def plotA_contour(A: xr.DataArray, im: xr.DataArray, cmap=None, im_opts=None):
         except IndexError:
             continue
         if cnt.ndim > 1:
-            pth = hv.Path(cnt.squeeze())
+            cnt_scale = np.zeros_like(cnt)
+            cnt_scale[:, 0] = A.coords["width"][cnt[:, 0]]
+            cnt_scale[:, 1] = A.coords["height"][cnt[:, 1]]
+            pth = hv.Path(cnt_scale.squeeze())
             if cmap is not None:
                 pth = pth.opts(color=cmap[uid])
             im = im * pth
