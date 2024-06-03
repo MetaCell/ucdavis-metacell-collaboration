@@ -10,7 +10,6 @@ yet, and some features may not be supported.
 import json
 import os
 import struct
-
 from typing import Tuple
 
 # import importlib_metadata
@@ -192,10 +191,9 @@ class Movie:
             )
 
         if self.footer["hasFrameHeaderFooter"]:
-            raise NotImplementedError(
-                """[UNIMPLEMENTED] Cannot extract frame from this
-        movie because frames have footers and headers."""
-            )
+            head_len = 2 * self.spacing.num_pixels[1] * bytes_per_pixel
+        else:
+            head_len = 0
 
         n_frames = self.footer["timingInfo"]["numTimes"]
 
@@ -208,13 +206,16 @@ class Movie:
 
         n_pixels = self.spacing.num_pixels[0] * self.spacing.num_pixels[1]
 
-        n_bytes_per_frame = n_pixels * bytes_per_pixel
+        n_bytes_per_frame = n_pixels * bytes_per_pixel + 2 * head_len
 
         with open(self.file_path, mode="rb") as file:
-            file.seek(index * n_bytes_per_frame)
+            file.seek(index * n_bytes_per_frame + head_len)
             data = file.read(bytes_per_pixel * n_pixels)
-            frame = np.frombuffer(data, dtype=self.data_type)
-            frame = np.reshape(frame, self.spacing.num_pixels)
+            try:
+                frame = np.frombuffer(data, dtype=self.data_type)
+                frame = np.reshape(frame, self.spacing.num_pixels)
+            except ValueError:
+                frame = np.zeros(self.spacing.num_pixels)
 
         return frame
 
