@@ -161,5 +161,4 @@ def load_isxd_lazy(fname: str, chunksize=100) -> darr.array:
 
 def load_isxd_chunk(fname: str, fidx: np.array):
     mov = Movie.read(fname)
-    mov.footer["hasFrameHeaderFooter"] = False
     return np.stack([mov.get_frame_data(int(f)) for f in fidx], axis=0)

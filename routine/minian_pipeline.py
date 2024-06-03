@@ -17,9 +17,10 @@ from minian.cnmf import (
 from minian.initialization import initA, initC, pnr_refine, seeds_init, seeds_merge
 from minian.motion_correction import apply_transform, estimate_motion
 from minian.preprocessing import denoise, remove_background
-from minian.utilities import get_optimal_chk, load_videos, save_minian
+from minian.utilities import get_optimal_chk, save_minian
 from minian.visualization import generate_videos, visualize_motion, visualize_seeds
 
+from .io import load_videos
 from .plotting import plotA_contour
 from .stripe_correction import label_good_frames, ripple_correction
 from .utilities import resample_motion
@@ -58,6 +59,8 @@ def minian_process(
     os.environ["MINIAN_INTERMEDIATE"] = intpath
     if varr is None:
         varr = load_videos(dpath, **param["load_videos"])
+        vmax = varr.max().compute()
+        varr = (varr * (255 / vmax)).astype(np.uint8)
     else:
         del varr.encoding["chunks"]
     chk, _ = get_optimal_chk(varr, dtype=float)
