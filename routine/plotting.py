@@ -8,7 +8,6 @@ import seaborn as sns
 import xarray as xr
 from matplotlib import cm
 
-from .place_cell import df2arr
 from .utilities import norm
 
 hv.extension("bokeh")
