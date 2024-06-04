@@ -50,7 +50,7 @@ def minian_process(
         **{
             "frame_width": 400,
             "aspect": 1,
-            "cmap": "viridis",
+            "cmap": "gray",
             "colorbar": True,
         }
     )
@@ -248,6 +248,21 @@ def minian_process(
     )
     C = save_minian(C_new.rename("C"), intpath, overwrite=True)
     C_chk = save_minian(C_chk_new.rename("C_chk"), intpath, overwrite=True)
+    plots["first-spatial"] = (
+        plotA_contour(A, max_proj).opts(opts_im).relabel("Spatial Footprints")
+        + hv.Image(
+            C.sel(frame=slice(0, None, 10)).compute().astype(np.float32),
+            kdims=["frame", "unit_id"],
+        )
+        .opts(opts_tr)
+        .relabel("Temporal Trace")
+        + hv.Image(b_new.compute().astype(np.float32), kdims=["width", "height"])
+        .opts(opts_im)
+        .relabel("Background Spatial")
+        + hv.Curve(f_new.compute().rename("f").astype(np.float16), kdims=["frame"])
+        .opts(opts_crv)
+        .relabel("Background Temporal")
+    ).cols(2)
     if return_stage == "first-spatial":
         return xr.merge([A, C, b, f]), plots
     YrA = save_minian(
@@ -278,6 +293,21 @@ def minian_process(
         c0_new.rename("c0").chunk({"unit_id": 1, "frame": -1}), intpath, overwrite=True
     )
     A = A.sel(unit_id=C.coords["unit_id"].values)
+    plots["first-temporal"] = (
+        plotA_contour(A, max_proj).opts(opts_im).relabel("Spatial Footprints")
+        + hv.Image(
+            C.sel(frame=slice(0, None, 10)).compute().astype(np.float32),
+            kdims=["frame", "unit_id"],
+        )
+        .opts(opts_tr)
+        .relabel("Temporal Trace")
+        + hv.Image(b_new.compute().astype(np.float32), kdims=["width", "height"])
+        .opts(opts_im)
+        .relabel("Background Spatial")
+        + hv.Curve(f_new.compute().rename("f").astype(np.float16), kdims=["frame"])
+        .opts(opts_crv)
+        .relabel("Background Temporal")
+    ).cols(2)
     if return_stage == "first-temporal":
         return xr.merge([A, C, S, b, f]), plots
     ## merge
@@ -296,6 +326,21 @@ def minian_process(
         chunks={"unit_id": -1, "frame": chk["frame"]},
     )
     sig = save_minian(sig_mrg.rename("sig_mrg"), intpath, overwrite=True)
+    plots["first-merge"] = (
+        plotA_contour(A, max_proj).opts(opts_im).relabel("Spatial Footprints")
+        + hv.Image(
+            C.sel(frame=slice(0, None, 10)).compute().astype(np.float32),
+            kdims=["frame", "unit_id"],
+        )
+        .opts(opts_tr)
+        .relabel("Temporal Trace")
+        + hv.Image(b_new.compute().astype(np.float32), kdims=["width", "height"])
+        .opts(opts_im)
+        .relabel("Background Spatial")
+        + hv.Curve(f_new.compute().rename("f").astype(np.float16), kdims=["frame"])
+        .opts(opts_crv)
+        .relabel("Background Temporal")
+    ).cols(2)
     ## second iteration
     A_new, mask, norm_fac = update_spatial(
         Y_hw_chk, A, sig, sn_spatial, **param["second_spatial"]
@@ -321,6 +366,21 @@ def minian_process(
     )
     C = save_minian(C_new.rename("C"), intpath, overwrite=True)
     C_chk = save_minian(C_chk_new.rename("C_chk"), intpath, overwrite=True)
+    plots["second-spatial"] = (
+        plotA_contour(A, max_proj).opts(opts_im).relabel("Spatial Footprints")
+        + hv.Image(
+            C.sel(frame=slice(0, None, 10)).compute().astype(np.float32),
+            kdims=["frame", "unit_id"],
+        )
+        .opts(opts_tr)
+        .relabel("Temporal Trace")
+        + hv.Image(b_new.compute().astype(np.float32), kdims=["width", "height"])
+        .opts(opts_im)
+        .relabel("Background Spatial")
+        + hv.Curve(f_new.compute().rename("f").astype(np.float16), kdims=["frame"])
+        .opts(opts_crv)
+        .relabel("Background Temporal")
+    ).cols(2)
     if return_stage == "second-spatial":
         return xr.merge([A, C, S, b, f]), plots
     YrA = save_minian(
