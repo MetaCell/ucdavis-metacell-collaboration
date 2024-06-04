@@ -1,11 +1,11 @@
 glow_rm:
   method: uniform
-  wnd: 30
+  wnd: 50
 background_removal:
   method: tophat
   wnd: 15
 denoise:
-  ksize: 5
+  ksize: 3
   method: median
 estimate_motion:
   aggregation: max
@@ -13,60 +13,67 @@ estimate_motion:
   dim: frame
   upsample: 10
 first_merge:
-  thres_corr: 0.5
+  thres_corr: 0.7
 first_spatial:
-  dl_wnd: 10
+  dl_wnd: 3
   size_thres: !!python/tuple
-    - 81
     - null
-  sparse_penal: 0.005
+    - null
+  sparse_penal: 0.002
 first_temporal:
-  add_lag: 100
+  add_lag: 200
   jac_thres: 0.2
-  med_wd: 1000
-  noise_freq: 0.06
+  med_wd: 3000
+  noise_freq: 0.03
   p: 1
-  sparse_penal: 2
+  sparse_penal: 0
 get_noise:
   noise_range: !!python/tuple
-    - 0.06
+    - 0.03
     - 0.5
 init_merge:
-  thres_corr: 0.8
+  thres_corr: 0.65
 initialize:
-  noise_freq: 0.06
-  thres_corr: 0.8
+  noise_freq: 0.03
+  thres_corr: 0.65
   wnd: 10
 load_videos:
-  dtype: !!python/name:numpy.uint8 ""
-  pattern: .*\.avi$
+  dtype: null
+  pattern: \.isxd$
+  downsample:
+    height: 2
+    width: 2
 pnr_refine:
-  noise_freq: 0.06
-  thres: 1.2
+  noise_freq: 0.03
+  thres: 1
 second_spatial:
-  dl_wnd: 10
+  dl_wnd: 5
   size_thres: !!python/tuple
-    - 81
+    - 25
     - null
-  sparse_penal: 0.005
+  sparse_penal: 0.001
 second_temporal:
-  add_lag: 100
+  add_lag: 200
   jac_thres: 0.4
-  med_wd: 1000
-  noise_freq: 0.06
+  med_wd: 3000
+  noise_freq: 0.03
   p: 1
-  sparse_penal: 1
+  sparse_penal: 0
 seeds_init:
-  diff_thres: 4
-  max_wnd: 40
+  diff_thres: 3
+  max_wnd: !!python/tuple
+    - 20
+    - 40
   method: rolling
   stp_size: 3000
   wnd_size: 6000
 seeds_merge:
-  noise_freq: 0.06
-  thres_corr: 0.7
+  noise_freq: 0.03
+  thres_corr: 0.5
   thres_dist: 10
 stripe_corr: null
-ripple_corr:
-  pos: 152
-  wnd: 1
+ripple_corr: null
+# subset:
+#   frame: !!python/tuple
+#     - 0
+#     - 5000
