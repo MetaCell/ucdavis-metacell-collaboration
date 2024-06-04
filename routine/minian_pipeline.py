@@ -14,12 +14,13 @@ from minian.cnmf import (
     update_spatial,
     update_temporal,
 )
-from minian.initialization import initA, initC, pnr_refine, seeds_init, seeds_merge
+from minian.initialization import initA, initC, pnr_refine, seeds_merge
 from minian.motion_correction import apply_transform, estimate_motion
 from minian.preprocessing import denoise, remove_background
 from minian.utilities import get_optimal_chk, save_minian
 from minian.visualization import generate_videos, visualize_motion, visualize_seeds
 
+from .initialization import seeds_init
 from .io import load_videos
 from .plotting import plotA_contour
 from .stripe_correction import label_good_frames, ripple_correction
