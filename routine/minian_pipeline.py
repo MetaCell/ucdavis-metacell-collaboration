@@ -59,8 +59,6 @@ def minian_process(
     os.environ["MINIAN_INTERMEDIATE"] = intpath
     if varr is None:
         varr = load_videos(dpath, **param["load_videos"])
-        vmax = varr.max().compute()
-        varr = (varr * (255 / vmax)).astype(np.uint8)
     else:
         del varr.encoding["chunks"]
     chk, _ = get_optimal_chk(varr, dtype=float)
@@ -97,11 +95,11 @@ def minian_process(
         varr_min = varr_ref.min("frame").compute()
         varr_ref = varr_ref - varr_min
     else:
-        varr_ref = (
-            remove_background(varr_ref.astype(float), **param["glow_rm"])
-            .clip(0, 255)
-            .astype(np.uint8)
+        varr_ref = remove_background(varr_ref.astype(float), **param["glow_rm"]).clip(
+            0, 2**16
         )
+        vmax = varr_ref.max().compute()
+        varr_ref = (varr_ref * (255 / vmax)).astype(np.uint8)
     varr_ref = denoise(varr_ref, **param["denoise"])
     varr_ref = remove_background(varr_ref, **param["background_removal"])
     if tx is not None:
