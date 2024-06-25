@@ -21,7 +21,7 @@ from minian.utilities import get_optimal_chk, save_minian
 from minian.visualization import generate_videos, visualize_motion, visualize_seeds
 
 from .initialization import seeds_init
-from .io import load_videos
+from .minian_io import load_videos
 from .plotting import plotA_contour
 from .stripe_correction import label_good_frames, ripple_correction
 from .utilities import resample_motion
