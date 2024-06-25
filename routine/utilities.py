@@ -4,6 +4,7 @@ import re
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 from scipy.interpolate import interp1d
 from sklearn.mixture import GaussianMixture
@@ -156,6 +157,35 @@ def thres_gmm(a: np.ndarray, com=-1, pos_thres=0.5) -> np.ndarray:
     if s.sum() / len(s) < pos_thres:
         ret = np.where(s, a, 0)
     return ret
+
+
+def xrconcat_recursive(var, dims) -> xr.Dataset:
+    if len(dims) > 1:
+        if type(var) is dict:
+            var_dict = var
+        elif type(var) is list:
+            var_dict = {tuple([np.array(v[d]).item() for d in dims]): v for v in var}
+        else:
+            raise NotImplementedError("type {} not supported".format(type(var)))
+        try:
+            var_dict = {k: v.to_dataset() for k, v in var_dict.items()}
+        except AttributeError:
+            pass
+        data = np.empty(len(var_dict), dtype=object)
+        for iv, ds in enumerate(var_dict.values()):
+            data[iv] = ds
+        index = pd.MultiIndex.from_tuples(list(var_dict.keys()), names=dims)
+        var_ps = pd.Series(data=data, index=index)
+        xr_ls = []
+        for idx, v in var_ps.groupby(level=dims[0]):
+            v.index = v.index.droplevel(dims[0])
+            xarr = xrconcat_recursive(v.to_dict(), dims[1:])
+            xr_ls.append(xarr)
+        return xr.concat(xr_ls, dim=dims[0])
+    else:
+        if type(var) is dict:
+            var = list(var.values())
+        return xr.concat(var, dim=dims[0])
 
 
 # def make_svg_panel(label, im_path, param_text, im_scale=1, fix_mpl=True, sh=None):
