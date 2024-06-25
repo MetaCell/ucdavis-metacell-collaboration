@@ -128,8 +128,8 @@ if __name__ == "__main__":
             cluster.close()
             continue
         result_ds = (
-            result_ds.assign_coords(scope=anm, session=ss)
-            .expand_dims(["scope", "session"])
+            result_ds.assign_coords(animal=anm, session=ss)
+            .expand_dims(["animal", "session"])
             .compute()
         )
         result_ds.to_netcdf(
