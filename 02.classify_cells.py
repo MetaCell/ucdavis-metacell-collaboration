@@ -20,6 +20,25 @@ from routine.plotting import imshow
 IN_EVT = "./intermediate/events_act/"
 PARAM_CLS_VAR = "C"
 PARAM_ZTHRES = 2
+PARAM_EVT_DICT = {
+    "baseline-0": "post-shock-1",
+    "baseline-1": "post-shock-2",
+    "baseline-2": "post-shock-3",
+    "baseline-3": "post-shock-4",
+    "baseline-4": "post-shock-5",
+    "baseline-5": "baseline",
+}
+PARAM_EVT_ORD = [
+    "baseline",
+    "tone",
+    "trace",
+    "shock",
+    "post-shock-1",
+    "post-shock-2",
+    "post-shock-3",
+    "post-shock-4",
+    "post-shock-5",
+]
 FIG_PATH = "./figs/cell_classification/"
 os.makedirs(FIG_PATH, exist_ok=True)
 
@@ -72,13 +91,17 @@ cell_df_agg = (
     .count()
     .rename("count")
     .reset_index()
+    .replace({"evt": PARAM_EVT_DICT})
+    .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
 )
 for (anm, ss), subdf in cell_df_agg.groupby(["animal", "session"]):
     fig = px.pie(subdf, names="resp", values="count", facet_col="evt", facet_col_wrap=3)
     fig.write_html(os.path.join(fig_path, "{}-{}.html".format(anm, ss)))
 
 # %% plot rasters
-cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
+cell_df_plt = (
+    cell_df[cell_df["resp"] == "activated"].copy().replace({"evt": PARAM_EVT_DICT})
+)
 cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
 cell_df_plt = cell_df_plt.sort_values(["animal", "session", "resp", "zval"]).set_index(
     ["animal", "session"]
@@ -87,6 +110,7 @@ act_agg = (
     act_zs.groupby(["animal", "session", "unit_id", "evt", "frame"])["value"]
     .mean()
     .reset_index()
+    .replace({"evt": PARAM_EVT_DICT})
 )
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
@@ -99,7 +123,12 @@ for (anm, ss), act_df in act_agg.groupby(["animal", "session"]):
             resp_df[["unit_id", "uid", "resp", "zval"]], on="unit_id", how="right"
         ).sort_values(["evt", "uid", "frame"])
         dat_df.append(dat)
-    dat_df = pd.concat(dat_df, ignore_index=True)
+    dat_df = (
+        pd.concat(dat_df, ignore_index=True)
+        .sort_values(["animal", "session"])
+        .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
+        .sort_values(["resp", "uid", "frame"])
+    )
     fig = imshow(
         dat_df,
         facet_row="resp",

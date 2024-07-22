@@ -463,8 +463,8 @@ def imshow(
     # data, facet_row, facet_col = handle_single_facet(data, facet_row, facet_col)
     if equal_aspect:
         xcol, ycol = kwargs["x"], kwargs["y"]
-        row_h = data.groupby(facet_row)[ycol].nunique()
-        col_w = data.groupby(facet_col)[xcol].nunique()
+        row_h = data.groupby(facet_row, sort=False)[ycol].nunique()
+        col_w = data.groupby(facet_col, sort=False)[xcol].nunique()
         subplot_args["row_heights"] = row_h.tolist()
         subplot_args["column_widths"] = col_w.tolist()
     fig, layout = facet_plotly(
