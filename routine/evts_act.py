@@ -15,12 +15,21 @@ def construct_periods(evts):
             pd.DataFrame(
                 [
                     {
-                        "evt": "baseline-{}".format(i),
+                        "evt": e,
                         "trial": trial,
                         "start": tone["ts"] - (6 - i) * 20,
                         "end": tone["ts"] - (5 - i) * 20,
                     }
-                    for i in range(6)
+                    for i, e in enumerate(
+                        [
+                            "post-shock-1",
+                            "post-shock-2",
+                            "post-shock-3",
+                            "post-shock-4",
+                            "post-shock-5",
+                            "baseline",
+                        ]
+                    )
                 ]
             )
         )
