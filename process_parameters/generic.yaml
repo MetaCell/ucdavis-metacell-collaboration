@@ -73,7 +73,7 @@ seeds_merge:
   thres_dist: 10
 stripe_corr: null
 ripple_corr: null
-# subset:
-#   frame: !!python/tuple
-#     - 0
-#     - 5000
+subset:
+   width: !!python/tuple
+    - 0
+    - 1200

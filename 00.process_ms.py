@@ -28,7 +28,7 @@ IN_MINIAN_INT_PATH = "~/var/minian-process/minian_int"
 IN_WORKER_PATH = "~/var/minian-process/dask-worker-space"
 IN_PARAM_FOLDER = "./process_parameters/"
 IN_SSMAP = "./sessions.csv"
-PARAM_SKIP_EXSISTING = False
+PARAM_SKIP_EXSISTING = True
 OUT_ERR_FOLDER = "./process_error"
 OUT_PATH = "./intermediate/processed/"
 FIG_FOLDER = "./figs/processed/"
@@ -115,7 +115,7 @@ if __name__ == "__main__":
                     dpath=os.path.join(IN_DPATH, dp),
                     intpath=IN_MINIAN_INT_PATH,
                     param=param,
-                    video_path=os.path.join(IN_DPATH, dp, "minian.mp4"),
+                    # video_path=os.path.join(IN_DPATH, dp, "minian.mp4"),
                 )
             tend = datetime.now()
             print("minian success: {}".format(dp))
