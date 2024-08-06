@@ -18,7 +18,6 @@ from routine.io import load_datasets
 from routine.plotting import imshow
 
 IN_EVT = "./intermediate/events_act/"
-PARAM_CLS_VAR = "C"
 PARAM_ZTHRES = 2
 PARAM_EVT_DICT = {
     "baseline-0": "post-shock-1",
@@ -63,22 +62,24 @@ def classify_cell(zval):
 cell_df_all = []
 act_zs_all = []
 for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
-    act_ds = xr.open_dataset(os.path.join(IN_EVT, "{}-{}.nc".format(anm, ss)))
-    act_df = act_ds[PARAM_CLS_VAR].rename("value").to_dataframe().dropna().reset_index()
-    act_zs = (
-        act_df.groupby(["animal", "session", "unit_id", "trial"])
-        .apply(zs_part, include_groups=False)
-        .reset_index()
-    )
-    cell_df = (
-        act_zs.groupby(["animal", "session", "unit_id", "evt"])["value"]
-        .mean()
-        .rename("zval")
-        .reset_index()
-    )
-    cell_df["resp"] = cell_df["zval"].map(classify_cell)
-    cell_df_all.append(cell_df)
-    act_zs_all.append(act_zs)
+    for cls_var in ["C", "S"]:
+        act_ds = xr.open_dataset(os.path.join(IN_EVT, "{}-{}.nc".format(anm, ss)))
+        act_df = act_ds[cls_var].rename("value").to_dataframe().dropna().reset_index()
+        act_df["cls_var"] = cls_var
+        act_zs = (
+            act_df.groupby(["cls_var", "animal", "session", "unit_id", "trial"])
+            .apply(zs_part, include_groups=False)
+            .reset_index()
+        )
+        cell_df = (
+            act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt"])["value"]
+            .mean()
+            .rename("zval")
+            .reset_index()
+        )
+        cell_df["resp"] = cell_df["zval"].map(classify_cell)
+        cell_df_all.append(cell_df)
+        act_zs_all.append(act_zs)
 cell_df = pd.concat(cell_df_all, ignore_index=True)
 act_zs = pd.concat(act_zs_all, ignore_index=True)
 
@@ -87,35 +88,37 @@ act_zs = pd.concat(act_zs_all, ignore_index=True)
 fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
 cell_df_agg = (
-    cell_df.groupby(["animal", "session", "evt", "resp"])["unit_id"]
+    cell_df.groupby(["animal", "session", "evt", "resp", "cls_var"])["unit_id"]
     .count()
     .rename("count")
     .reset_index()
     .replace({"evt": PARAM_EVT_DICT})
     .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
 )
-for (anm, ss), subdf in cell_df_agg.groupby(["animal", "session"]):
+for (anm, ss, cls_var), subdf in cell_df_agg.groupby(["animal", "session", "cls_var"]):
     fig = px.pie(subdf, names="resp", values="count", facet_col="evt", facet_col_wrap=3)
-    fig.write_html(os.path.join(fig_path, "{}-{}.html".format(anm, ss)))
+    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
 
 # %% plot rasters
 cell_df_plt = (
     cell_df[cell_df["resp"] == "activated"].copy().replace({"evt": PARAM_EVT_DICT})
 )
 cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
-cell_df_plt = cell_df_plt.sort_values(["animal", "session", "resp", "zval"]).set_index(
-    ["animal", "session"]
-)
+cell_df_plt = cell_df_plt.sort_values(
+    ["cls_var", "animal", "session", "resp", "zval"]
+).set_index(["cls_var", "animal", "session"])
 act_agg = (
-    act_zs.groupby(["animal", "session", "unit_id", "evt", "frame"])["value"]
+    act_zs.replace(np.inf, np.nan)
+    .dropna(subset=["value"])
+    .groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
     .mean()
     .reset_index()
     .replace({"evt": PARAM_EVT_DICT})
 )
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
-for (anm, ss), act_df in act_agg.groupby(["animal", "session"]):
-    cdf = cell_df_plt.loc[anm, ss]
+for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session"]):
+    cdf = cell_df_plt.loc[cls_var, anm, ss]
     dat_df = []
     for resp, resp_df in cdf.groupby("resp"):
         resp_df["uid"] = np.arange(len(resp_df))
@@ -148,4 +151,4 @@ for (anm, ss), act_df in act_agg.groupby(["animal", "session"]):
         },
     )
     fig.update_layout({"height": 1600, "hoverlabel.namelength": -1})
-    fig.write_html(os.path.join(fig_path, "{}-{}.html".format(anm, ss)))
+    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
