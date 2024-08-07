@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import seaborn as sns
 import xarray as xr
 
 from routine.io import load_datasets
@@ -19,14 +20,6 @@ from routine.plotting import imshow
 
 IN_EVT = "./intermediate/events_act/"
 PARAM_ZTHRES = 2
-PARAM_EVT_DICT = {
-    "baseline-0": "post-shock-1",
-    "baseline-1": "post-shock-2",
-    "baseline-2": "post-shock-3",
-    "baseline-3": "post-shock-4",
-    "baseline-4": "post-shock-5",
-    "baseline-5": "baseline",
-}
 PARAM_EVT_ORD = [
     "baseline",
     "tone",
@@ -38,18 +31,36 @@ PARAM_EVT_ORD = [
     "post-shock-4",
     "post-shock-5",
 ]
+PARAM_CLS = [
+    set(c)
+    for r in range(3, 0, -1)
+    for c in itt.combinations(["tone", "trace", "shock"], r)
+] + [
+    set(c)
+    for c in [
+        "post-shock-1",
+        "post-shock-2",
+        "post-shock-3",
+        "post-shock-4",
+        "post-shock-5",
+        "baseline",
+    ]
+]
 FIG_PATH = "./figs/cell_classification/"
 os.makedirs(FIG_PATH, exist_ok=True)
 
 
-def zs_part(df, evt_col="evt", base_lab="baseline-5", val_col="value"):
+def zs_part(df, evt_col="evt", base_lab="baseline", val_col="value", std_thres=1e-4):
     df_base = df[df[evt_col] == base_lab]
     base_mean, base_std = df_base[val_col].mean(), df_base[val_col].std()
-    df[val_col] = (df[val_col] - base_mean) / base_std
+    if base_std > std_thres:
+        df[val_col] = (df[val_col] - base_mean) / base_std
+    else:
+        df[val_col] = np.nan
     return df.set_index(evt_col)
 
 
-def classify_cell(zval):
+def thres_resp(zval):
     if zval > PARAM_ZTHRES:
         return "activated"
     elif zval < -PARAM_ZTHRES:
@@ -58,8 +69,18 @@ def classify_cell(zval):
         return "non-responsive"
 
 
+def classify_cell(cdf, evt_col="evt", zval_col="zval"):
+    act_set = set(cdf.loc[cdf[zval_col] > PARAM_ZTHRES, evt_col])
+    for test_set in PARAM_CLS:
+        if test_set <= act_set:
+            suffix = " only" if len(test_set) == 1 else ""
+            return "+".join(test_set) + suffix
+    return "non-responsive"
+
+
 # %% compute zscore and classify cells
 cell_df_all = []
+cell_cls_df_all = []
 act_zs_all = []
 for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
     for cls_var in ["C", "S"]:
@@ -77,10 +98,18 @@ for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
             .rename("zval")
             .reset_index()
         )
-        cell_df["resp"] = cell_df["zval"].map(classify_cell)
+        cell_df["resp"] = cell_df["zval"].map(thres_resp)
+        cell_cls_df = (
+            cell_df.groupby(["cls_var", "animal", "session", "unit_id"])
+            .apply(classify_cell, include_groups=False)
+            .rename("cls")
+            .reset_index()
+        )
+        cell_cls_df_all.append(cell_cls_df)
         cell_df_all.append(cell_df)
         act_zs_all.append(act_zs)
 cell_df = pd.concat(cell_df_all, ignore_index=True)
+cell_cls_df = pd.concat(cell_cls_df_all, ignore_index=True)
 act_zs = pd.concat(act_zs_all, ignore_index=True)
 
 
@@ -92,28 +121,37 @@ cell_df_agg = (
     .count()
     .rename("count")
     .reset_index()
-    .replace({"evt": PARAM_EVT_DICT})
     .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
 )
 for (anm, ss, cls_var), subdf in cell_df_agg.groupby(["animal", "session", "cls_var"]):
     fig = px.pie(subdf, names="resp", values="count", facet_col="evt", facet_col_wrap=3)
     fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
 
-# %% plot rasters
-cell_df_plt = (
-    cell_df[cell_df["resp"] == "activated"].copy().replace({"evt": PARAM_EVT_DICT})
+# %% plot distribution of classes
+fig_path = os.path.join(FIG_PATH, "cell_cls")
+os.makedirs(fig_path, exist_ok=True)
+cell_cls_agg = (
+    cell_cls_df.groupby(["cls_var", "animal", "session", "cls"])["unit_id"]
+    .count()
+    .rename("count")
+    .reset_index()
 )
+for (anm, cls_var), subdf in cell_cls_agg.groupby(["animal", "cls_var"]):
+    fig = px.pie(
+        subdf, names="cls", values="count", facet_col="session", facet_col_wrap=3
+    )
+    fig.write_html(os.path.join(fig_path, "{}-by{}.html".format(anm, cls_var)))
+
+# %% plot rasters
+cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
 cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
 cell_df_plt = cell_df_plt.sort_values(
     ["cls_var", "animal", "session", "resp", "zval"]
 ).set_index(["cls_var", "animal", "session"])
 act_agg = (
-    act_zs.replace(np.inf, np.nan)
-    .dropna(subset=["value"])
-    .groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
+    act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
     .mean()
     .reset_index()
-    .replace({"evt": PARAM_EVT_DICT})
 )
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
@@ -152,3 +190,77 @@ for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session
     )
     fig.update_layout({"height": 1600, "hoverlabel.namelength": -1})
     fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
+
+
+# %% generate activity with cell class
+def reset_uid(df):
+    uid_map = {u: i for i, u in enumerate(df["unit_id"].unique())}
+    df["uid"] = df["unit_id"].map(uid_map)
+    return df
+
+
+act_agg = (
+    act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
+    .mean()
+    .reset_index()
+)
+cell_cls_df_plt = cell_cls_df.sort_values(["cls_var", "animal", "session"]).set_index(
+    ["cls_var", "animal", "session"]
+)
+act_cls = []
+for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session"]):
+    cdf = cell_cls_df_plt.loc[cls_var, anm, ss]
+    act_df = (
+        act_df.merge(cdf, on="unit_id", how="left")
+        .groupby("cls")
+        .apply(reset_uid, include_groups=False)
+        .reset_index()
+        .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
+        .sort_values(["cls", "uid", "frame"])
+    )
+    act_cls.append(act_df)
+act_cls = pd.concat(act_cls, ignore_index=True)
+
+
+# %% plot post-shock activations based on cell class
+fig_path = os.path.join(FIG_PATH, "cls_raster")
+os.makedirs(fig_path, exist_ok=True)
+for (cls, anm, ss), act_df in act_cls.groupby(["cls_var", "animal", "session"]):
+    fig = imshow(
+        act_df,
+        facet_row="cls",
+        facet_col="evt",
+        x="frame",
+        y="uid",
+        z="value",
+        colorscale="viridis",
+        zmin=0,
+        zmax=dat_df["value"].quantile(0.98),
+        showscale=False,
+        subplot_args={
+            "shared_xaxes": "columns",
+            "shared_yaxes": "rows",
+            "horizontal_spacing": 0.004,
+            "vertical_spacing": 0.006,
+        },
+    )
+    fig.update_layout({"height": 1600, "hoverlabel.namelength": -1})
+    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
+
+# %% plot aggregated post-shock activations based on cell class
+fig_path = os.path.join(FIG_PATH, "cls_post-shock_agg")
+os.makedirs(fig_path, exist_ok=True)
+for (cls, anm), act_df in act_cls.groupby(["cls_var", "animal"]):
+    plt_df = act_df[act_df["evt"].map(lambda e: e.startswith("post-shock"))]
+    g = sns.FacetGrid(
+        plt_df,
+        row="session",
+        col="cls",
+        hue="evt",
+        margin_titles=True,
+        sharex="row",
+        sharey="row",
+    )
+    g.map_dataframe(sns.lineplot, x="frame", y="value", estimator="mean", errorbar="se")
+    g.add_legend()
+    g.figure.savefig(os.path.join(fig_path, "{}-by{}.svg".format(anm, cls)))
