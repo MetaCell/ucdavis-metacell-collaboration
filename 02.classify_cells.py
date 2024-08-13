@@ -245,7 +245,7 @@ for (cls, anm, ss), act_df in act_cls.groupby(["cls_var", "animal", "session"]):
         },
     )
     fig.update_layout({"height": 1600, "hoverlabel.namelength": -1})
-    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
+    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls)))
 
 # %% plot aggregated post-shock activations based on cell class
 fig_path = os.path.join(FIG_PATH, "cls_post-shock_agg")
