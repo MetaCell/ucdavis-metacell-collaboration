@@ -226,7 +226,6 @@ evt_dict = {
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
 for evt_type, evt_dat in evt_dict.items():
-    os.makedirs(fpath, exist_ok=True)
     for (cls_var, anm, ss), act_df in act_zs.groupby(["cls_var", "animal", "session"]):
         cdf = evt_dat.loc[cls_var, anm, ss]
         dat_df = combine_act_cell(act_df, cdf)
