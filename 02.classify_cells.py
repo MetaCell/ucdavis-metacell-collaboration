@@ -19,6 +19,7 @@ from routine.io import load_datasets
 from routine.plotting import imshow
 
 IN_EVT = "./intermediate/events_act/"
+INT_PATH = "./intermediate/classify_cells"
 PARAM_ZTHRES = 2
 PARAM_EVT_ORD = [
     "baseline",
@@ -48,6 +49,7 @@ PARAM_CLS = [
 ]
 FIG_PATH = "./figs/cell_classification/"
 os.makedirs(FIG_PATH, exist_ok=True)
+os.makedirs(INT_PATH, exist_ok=True)
 
 
 def zs_part(df, evt_col="evt", base_lab="baseline", val_col="value", std_thres=1e-4):
@@ -111,9 +113,12 @@ for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
 cell_df = pd.concat(cell_df_all, ignore_index=True)
 cell_cls_df = pd.concat(cell_cls_df_all, ignore_index=True)
 act_zs = pd.concat(act_zs_all, ignore_index=True)
+cell_df.to_feather(os.path.join(INT_PATH, "cell_df.feat"))
+cell_cls_df.to_feather(os.path.join(INT_PATH, "cell_cls_df.feat"))
+act_zs.to_feather(os.path.join(INT_PATH, "act_zs.feat"))
 
 
-# %% plot distribution of cell counts
+# %% plot cell counts for single events
 fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
 cell_df_agg = (
@@ -125,10 +130,12 @@ cell_df_agg = (
 )
 for (anm, ss, cls_var), subdf in cell_df_agg.groupby(["animal", "session", "cls_var"]):
     fig = px.pie(subdf, names="resp", values="count", facet_col="evt", facet_col_wrap=3)
-    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
+    fig.write_html(
+        os.path.join(fig_path, "{}-{}-by{}-single_evt.html".format(anm, ss, cls_var))
+    )
 
-# %% plot distribution of classes
-fig_path = os.path.join(FIG_PATH, "cell_cls")
+# %% plot cell counts for compound events
+fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
 cell_cls_agg = (
     cell_cls_df.groupby(["cls_var", "animal", "session", "cls"])["unit_id"]
@@ -136,11 +143,13 @@ cell_cls_agg = (
     .rename("count")
     .reset_index()
 )
-for (anm, cls_var), subdf in cell_cls_agg.groupby(["animal", "cls_var"]):
+for (anm, ss, cls_var), subdf in cell_cls_agg.groupby(["animal", "session", "cls_var"]):
     fig = px.pie(
         subdf, names="cls", values="count", facet_col="session", facet_col_wrap=3
     )
-    fig.write_html(os.path.join(fig_path, "{}-by{}.html".format(anm, cls_var)))
+    fig.write_html(
+        os.path.join(fig_path, "{}-{}-by{}-compound_evt.html".format(anm, ss, cls_var))
+    )
 
 # %% plot rasters
 cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
@@ -189,10 +198,12 @@ for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session
         },
     )
     fig.update_layout({"height": 1600, "hoverlabel.namelength": -1})
-    fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls_var)))
+    fig.write_html(
+        os.path.join(fig_path, "{}-{}-by{}-single_evt.html".format(anm, ss, cls_var))
+    )
 
 
-# %% generate activity with cell class
+# %% generate trial avg activity with cell class
 def reset_uid(df):
     uid_map = {u: i for i, u in enumerate(df["unit_id"].unique())}
     df["uid"] = df["unit_id"].map(uid_map)
@@ -222,8 +233,8 @@ for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session
 act_cls = pd.concat(act_cls, ignore_index=True)
 
 
-# %% plot post-shock activations based on cell class
-fig_path = os.path.join(FIG_PATH, "cls_raster")
+# %% plot raster of post shock activation
+fig_path = os.path.join(FIG_PATH, "post_shock")
 os.makedirs(fig_path, exist_ok=True)
 for (cls, anm, ss), act_df in act_cls.groupby(["cls_var", "animal", "session"]):
     fig = imshow(
@@ -248,7 +259,7 @@ for (cls, anm, ss), act_df in act_cls.groupby(["cls_var", "animal", "session"]):
     fig.write_html(os.path.join(fig_path, "{}-{}-by{}.html".format(anm, ss, cls)))
 
 # %% plot aggregated post-shock activations based on cell class
-fig_path = os.path.join(FIG_PATH, "cls_post-shock_agg")
+fig_path = os.path.join(FIG_PATH, "post_shock")
 os.makedirs(fig_path, exist_ok=True)
 for (cls, anm), act_df in act_cls.groupby(["cls_var", "animal"]):
     plt_df = act_df[act_df["evt"].map(lambda e: e.startswith("post-shock"))]
@@ -263,4 +274,4 @@ for (cls, anm), act_df in act_cls.groupby(["cls_var", "animal"]):
     )
     g.map_dataframe(sns.lineplot, x="frame", y="value", estimator="mean", errorbar="se")
     g.add_legend()
-    g.figure.savefig(os.path.join(fig_path, "{}-by{}.svg".format(anm, cls)))
+    g.figure.savefig(os.path.join(fig_path, "{}-agg-by{}.svg".format(anm, cls)))
