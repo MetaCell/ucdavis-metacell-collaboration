@@ -171,13 +171,13 @@ def combine_act_cell(act_df, cdf, by="resp"):
     )
 
 
-def plot_raster(dat_df, by="resp"):
+def plot_raster(dat_df, by="resp", y="uid"):
     fig = imshow(
         dat_df,
         facet_row=by,
         facet_col="evt",
         x="frame",
-        y="uid",
+        y=y,
         z="value",
         colorscale="viridis",
         zmin=0,
@@ -194,7 +194,7 @@ def plot_raster(dat_df, by="resp"):
     return fig
 
 
-def plot_agg_curve(dat_df, by="resp", show_individual=False):
+def plot_agg_curve(dat_df, by="resp", hue="trial", show_individual=False):
     g = sns.FacetGrid(
         dat_df,
         row=by,
@@ -205,7 +205,7 @@ def plot_agg_curve(dat_df, by="resp", show_individual=False):
     )
     if show_individual:
         g.map_dataframe(
-            sns.lineplot, x="frame", y="value", hue="uid", errorbar=None, alpha=0.5
+            sns.lineplot, x="frame", y="value", hue=hue, errorbar=None, alpha=0.5
         )
     g.map_dataframe(sns.lineplot, x="frame", y="value", estimator="mean", errorbar="se")
     g.add_legend()
@@ -214,11 +214,7 @@ def plot_agg_curve(dat_df, by="resp", show_individual=False):
 
 cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
 cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
-act_agg = (
-    act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
-    .mean()
-    .reset_index()
-)
+
 evt_dict = {
     "single_evt": cell_df_plt.sort_values(
         ["cls_var", "animal", "session", "resp", "zval"]
@@ -230,34 +226,91 @@ evt_dict = {
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
 for evt_type, evt_dat in evt_dict.items():
-    for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session"]):
+    os.makedirs(fpath, exist_ok=True)
+    for (cls_var, anm, ss), act_df in act_zs.groupby(["cls_var", "animal", "session"]):
         cdf = evt_dat.loc[cls_var, anm, ss]
         dat_df = combine_act_cell(act_df, cdf)
-        fig = plot_raster(dat_df)
-        fig.write_html(
-            os.path.join(
-                fig_path, "{}-{}-by{}-{}.html".format(anm, ss, cls_var, evt_type)
+        dat_dict = {
+            "by_unit": dat_df.groupby(
+                [
+                    "cls_var",
+                    "animal",
+                    "session",
+                    "unit_id",
+                    "uid",
+                    "resp",
+                    "evt",
+                    "frame",
+                ],
+                sort=False,
+            )["value"]
+            .mean()
+            .reset_index(),
+            "by_trial": dat_df.groupby(
+                ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
+                sort=False,
+            )["value"]
+            .mean()
+            .reset_index(),
+        }
+        for act_type, dat in dat_dict.items():
+            fpath = os.path.join(fig_path, act_type)
+            os.makedirs(fpath, exist_ok=True)
+            fig = plot_raster(dat, y="uid" if act_type == "by_unit" else "trial")
+            fig.write_html(
+                os.path.join(
+                    fpath, "{}-{}-by{}-{}.html".format(anm, ss, cls_var, evt_type)
+                )
             )
-        )
-        fig_agg = plot_agg_curve(dat_df)
-        fig_agg.savefig(
-            os.path.join(
-                fig_path, "{}-{}-by{}-{}.svg".format(anm, ss, cls_var, evt_type)
+            fig_agg = plot_agg_curve(
+                dat, show_individual=False if act_type == "by_unit" else True
             )
-        )
-        plt.close(fig_agg)
-    for cls_var, act_df in act_agg.groupby("cls_var"):
+            fig_agg.savefig(
+                os.path.join(
+                    fpath, "{}-{}-by{}-{}.svg".format(anm, ss, cls_var, evt_type)
+                )
+            )
+            plt.close(fig_agg)
+    for cls_var, act_df in act_zs.groupby("cls_var"):
         cdf = evt_dat.loc[cls_var].reset_index()
         dat_df = combine_act_cell(act_df, cdf)
-        fig = plot_raster(dat_df)
-        fig.write_html(
-            os.path.join(fig_path, "all-all-by{}-{}.html".format(cls_var, evt_type))
-        )
-        fig_agg = plot_agg_curve(dat_df)
-        fig_agg.savefig(
-            os.path.join(fig_path, "all-all-by{}-{}.svg".format(cls_var, evt_type))
-        )
-        plt.close(fig_agg)
+        dat_dict = {
+            "by_unit": dat_df.groupby(
+                [
+                    "cls_var",
+                    "animal",
+                    "session",
+                    "unit_id",
+                    "uid",
+                    "resp",
+                    "evt",
+                    "frame",
+                ],
+                sort=False,
+            )["value"]
+            .mean()
+            .reset_index(),
+            "by_trial": dat_df.groupby(
+                ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
+                sort=False,
+            )["value"]
+            .mean()
+            .reset_index(),
+        }
+        for act_type, dat in dat_dict.items():
+            fpath = os.path.join(fig_path, act_type)
+            os.makedirs(fpath, exist_ok=True)
+            fig = plot_raster(dat, y="uid" if act_type == "by_unit" else "trial")
+            fig.write_html(
+                os.path.join(fpath, "all-all-by{}-{}.html".format(cls_var, evt_type))
+            )
+            fig_agg = plot_agg_curve(
+                dat, show_individual=False if act_type == "by_unit" else True
+            )
+            fig_agg.savefig(
+                os.path.join(fpath, "all-all-by{}-{}.svg".format(cls_var, evt_type))
+            )
+            plt.close(fig_agg)
 
 
 # %% generate trial avg activity with cell class
