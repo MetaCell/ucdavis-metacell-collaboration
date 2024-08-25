@@ -380,7 +380,7 @@ def scatter_agg(
         idx_dims.append(legend_dim)
         show_legend = {l: True for l in data[legend_dim].unique()}
     data_agg = (
-        data.groupby(grp_dims)[y]
+        data.groupby(grp_dims, observed=True)[y]
         .agg(["mean", "sem"])
         .reset_index()
         .merge(data, on=grp_dims)
@@ -463,8 +463,8 @@ def imshow(
     # data, facet_row, facet_col = handle_single_facet(data, facet_row, facet_col)
     if equal_aspect:
         xcol, ycol = kwargs["x"], kwargs["y"]
-        row_h = data.groupby(facet_row, sort=False)[ycol].nunique()
-        col_w = data.groupby(facet_col, sort=False)[xcol].nunique()
+        row_h = data.groupby(facet_row, sort=False, observed=True)[ycol].nunique()
+        col_w = data.groupby(facet_col, sort=False, observed=True)[xcol].nunique()
         subplot_args["row_heights"] = row_h.tolist()
         subplot_args["column_widths"] = col_w.tolist()
     fig, layout = facet_plotly(

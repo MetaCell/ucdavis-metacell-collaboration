@@ -110,9 +110,33 @@ for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
         cell_cls_df_all.append(cell_cls_df)
         cell_df_all.append(cell_df)
         act_zs_all.append(act_zs)
-cell_df = pd.concat(cell_df_all, ignore_index=True)
-cell_cls_df = pd.concat(cell_cls_df_all, ignore_index=True)
-act_zs = pd.concat(act_zs_all, ignore_index=True)
+cell_df = pd.concat(cell_df_all, ignore_index=True).astype(
+    {
+        "cls_var": "category",
+        "animal": "category",
+        "session": "category",
+        "unit_id": "category",
+        "evt": "category",
+    }
+)
+cell_cls_df = pd.concat(cell_cls_df_all, ignore_index=True).astype(
+    {
+        "cls_var": "category",
+        "animal": "category",
+        "session": "category",
+        "unit_id": "category",
+        "cls": "category",
+    }
+)
+act_zs = pd.concat(act_zs_all, ignore_index=True).astype(
+    {
+        "cls_var": "category",
+        "animal": "category",
+        "session": "category",
+        "unit_id": "category",
+        "evt": "category",
+    }
+)
 cell_df.to_feather(os.path.join(INT_PATH, "cell_df.feat"))
 cell_cls_df.to_feather(os.path.join(INT_PATH, "cell_cls_df.feat"))
 act_zs.to_feather(os.path.join(INT_PATH, "act_zs.feat"))
@@ -122,13 +146,17 @@ act_zs.to_feather(os.path.join(INT_PATH, "act_zs.feat"))
 fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
 cell_df_agg = (
-    cell_df.groupby(["animal", "session", "evt", "resp", "cls_var"])["unit_id"]
+    cell_df.groupby(["animal", "session", "evt", "resp", "cls_var"], observed=True)[
+        "unit_id"
+    ]
     .count()
     .rename("count")
     .reset_index()
     .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
 )
-for (anm, ss, cls_var), subdf in cell_df_agg.groupby(["animal", "session", "cls_var"]):
+for (anm, ss, cls_var), subdf in cell_df_agg.groupby(
+    ["animal", "session", "cls_var"], observed=True
+):
     fig = px.pie(subdf, names="resp", values="count", facet_col="evt", facet_col_wrap=3)
     fig.write_html(
         os.path.join(fig_path, "{}-{}-by{}-single_evt.html".format(anm, ss, cls_var))
@@ -138,12 +166,16 @@ for (anm, ss, cls_var), subdf in cell_df_agg.groupby(["animal", "session", "cls_
 fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
 cell_cls_agg = (
-    cell_cls_df.groupby(["cls_var", "animal", "session", "cls"])["unit_id"]
+    cell_cls_df.groupby(["cls_var", "animal", "session", "cls"], observed=True)[
+        "unit_id"
+    ]
     .count()
     .rename("count")
     .reset_index()
 )
-for (anm, ss, cls_var), subdf in cell_cls_agg.groupby(["animal", "session", "cls_var"]):
+for (anm, ss, cls_var), subdf in cell_cls_agg.groupby(
+    ["animal", "session", "cls_var"], observed=True
+):
     fig = px.pie(
         subdf, names="cls", values="count", facet_col="session", facet_col_wrap=3
     )
@@ -155,8 +187,8 @@ for (anm, ss, cls_var), subdf in cell_cls_agg.groupby(["animal", "session", "cls
 # %% plot rasters
 def reset_uid(df):
     uid_map = {u: i for i, u in enumerate(df["unit_id"].unique())}
-    df["uid"] = df["unit_id"].map(uid_map)
-    return df
+    df["uid"] = df["unit_id"].map(uid_map).astype("category")
+    return df.set_index("uid")
 
 
 def combine_act_cell(act_df, cdf, by="resp"):
@@ -213,8 +245,9 @@ def plot_agg_curve(dat_df, by="resp", hue="trial", show_individual=False):
 
 
 cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
-cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
-
+cell_df_plt["resp"] = (
+    cell_df_plt["evt"].astype(str) + "-" + cell_df_plt["resp"].astype(str)
+).astype("category")
 evt_dict = {
     "single_evt": cell_df_plt.sort_values(
         ["cls_var", "animal", "session", "resp", "zval"]
@@ -226,7 +259,9 @@ evt_dict = {
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
 for evt_type, evt_dat in evt_dict.items():
-    for (cls_var, anm, ss), act_df in act_zs.groupby(["cls_var", "animal", "session"]):
+    for (cls_var, anm, ss), act_df in act_zs.groupby(
+        ["cls_var", "animal", "session"], observed=True
+    ):
         cdf = evt_dat.loc[cls_var, anm, ss]
         dat_df = combine_act_cell(act_df, cdf)
         dat_dict = {
@@ -241,12 +276,14 @@ for evt_type, evt_dat in evt_dict.items():
                     "evt",
                     "frame",
                 ],
+                observed=True,
                 sort=False,
             )["value"]
             .mean()
             .reset_index(),
             "by_trial": dat_df.groupby(
                 ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
+                observed=True,
                 sort=False,
             )["value"]
             .mean()
@@ -270,7 +307,7 @@ for evt_type, evt_dat in evt_dict.items():
                 )
             )
             plt.close(fig_agg)
-    for cls_var, act_df in act_zs.groupby("cls_var"):
+    for cls_var, act_df in act_zs.groupby("cls_var", observed=True):
         cdf = evt_dat.loc[cls_var].reset_index()
         dat_df = combine_act_cell(act_df, cdf)
         dat_dict = {
@@ -285,12 +322,14 @@ for evt_type, evt_dat in evt_dict.items():
                     "evt",
                     "frame",
                 ],
+                observed=True,
                 sort=False,
             )["value"]
             .mean()
             .reset_index(),
             "by_trial": dat_df.groupby(
                 ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
+                observed=True,
                 sort=False,
             )["value"]
             .mean()
@@ -320,7 +359,9 @@ def reset_uid(df):
 
 
 act_agg = (
-    act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
+    act_zs.groupby(
+        ["cls_var", "animal", "session", "unit_id", "evt", "frame"], observed=True
+    )["value"]
     .mean()
     .reset_index()
 )
@@ -328,7 +369,9 @@ cell_cls_df_plt = cell_cls_df.sort_values(["cls_var", "animal", "session"]).set_
     ["cls_var", "animal", "session"]
 )
 act_cls = []
-for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session"]):
+for (cls_var, anm, ss), act_df in act_agg.groupby(
+    ["cls_var", "animal", "session"], observed=True
+):
     cdf = cell_cls_df_plt.loc[cls_var, anm, ss]
     act_df = (
         act_df.merge(cdf, on="unit_id", how="left")
@@ -345,7 +388,9 @@ act_cls = pd.concat(act_cls, ignore_index=True)
 # %% plot raster of post shock activation
 fig_path = os.path.join(FIG_PATH, "post_shock")
 os.makedirs(fig_path, exist_ok=True)
-for (cls, anm, ss), act_df in act_cls.groupby(["cls_var", "animal", "session"]):
+for (cls, anm, ss), act_df in act_cls.groupby(
+    ["cls_var", "animal", "session"], observed=True
+):
     fig = imshow(
         act_df,
         facet_row="cls",
@@ -370,7 +415,7 @@ for (cls, anm, ss), act_df in act_cls.groupby(["cls_var", "animal", "session"]):
 # %% plot aggregated post-shock activations based on cell class
 fig_path = os.path.join(FIG_PATH, "post_shock")
 os.makedirs(fig_path, exist_ok=True)
-for (cls, anm), act_df in act_cls.groupby(["cls_var", "animal"]):
+for (cls, anm), act_df in act_cls.groupby(["cls_var", "animal"], observed=True):
     plt_df = act_df[act_df["evt"].map(lambda e: e.startswith("post-shock"))]
     g = sns.FacetGrid(
         plt_df,
