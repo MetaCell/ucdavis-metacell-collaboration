@@ -194,7 +194,7 @@ def reset_uid(df):
 def combine_act_cell(act_df, cdf, by="resp"):
     return (
         act_df.merge(cdf[["unit_id", by]], on="unit_id", how="right")
-        .groupby(by)
+        .groupby(by, observed=True)
         .apply(reset_uid, include_groups=False)
         .reset_index()
         .sort_values(["animal", "session"])
