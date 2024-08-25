@@ -151,21 +151,9 @@ for (anm, ss, cls_var), subdf in cell_cls_agg.groupby(["animal", "session", "cls
         os.path.join(fig_path, "{}-{}-by{}-compound_evt.html".format(anm, ss, cls_var))
     )
 
+
 # %% plot rasters
-cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
-cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
-cell_df_plt = cell_df_plt.sort_values(
-    ["cls_var", "animal", "session", "resp", "zval"]
-).set_index(["cls_var", "animal", "session"])
-act_agg = (
-    act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
-    .mean()
-    .reset_index()
-)
-fig_path = os.path.join(FIG_PATH, "raster")
-os.makedirs(fig_path, exist_ok=True)
-for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session"]):
-    cdf = cell_df_plt.loc[cls_var, anm, ss]
+def plot_raster(act_df, cdf):
     dat_df = []
     for resp, resp_df in cdf.groupby("resp"):
         resp_df["uid"] = np.arange(len(resp_df))
@@ -188,7 +176,7 @@ for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session
         z="value",
         colorscale="viridis",
         zmin=0,
-        zmax=dat_df["value"].quantile(0.95),
+        zmax=dat_df["value"].quantile(0.99),
         showscale=False,
         subplot_args={
             "shared_xaxes": "columns",
@@ -198,8 +186,32 @@ for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session
         },
     )
     fig.update_layout({"height": 1600, "hoverlabel.namelength": -1})
+    return fig
+
+
+cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
+cell_df_plt["resp"] = cell_df_plt["evt"] + "-" + cell_df_plt["resp"]
+cell_df_plt = cell_df_plt.sort_values(
+    ["cls_var", "animal", "session", "resp", "zval"]
+).set_index(["cls_var", "animal", "session"])
+act_agg = (
+    act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt", "frame"])["value"]
+    .mean()
+    .reset_index()
+)
+fig_path = os.path.join(FIG_PATH, "raster")
+os.makedirs(fig_path, exist_ok=True)
+for (cls_var, anm, ss), act_df in act_agg.groupby(["cls_var", "animal", "session"]):
+    cdf = cell_df_plt.loc[cls_var, anm, ss]
+    fig = plot_raster(act_df, cdf)
     fig.write_html(
         os.path.join(fig_path, "{}-{}-by{}-single_evt.html".format(anm, ss, cls_var))
+    )
+for cls_var, act_df in act_agg.groupby("cls_var"):
+    cdf = cell_df_plt.loc[cls_var].reset_index()
+    fig = plot_raster(act_df, cdf)
+    fig.write_html(
+        os.path.join(fig_path, "all-all-by{}-single_evt.html".format(cls_var))
     )
 
 
