@@ -193,7 +193,9 @@ def reset_uid(df):
 
 def combine_act_cell(act_df, cdf, by="resp"):
     return (
-        act_df.merge(cdf[["unit_id", by]], on="unit_id", how="right")
+        act_df.merge(
+            cdf[["unit_id", by]], on="unit_id", how="right", validate="many_to_one"
+        )
         .groupby(by, observed=True)
         .apply(reset_uid, include_groups=False)
         .reset_index()
@@ -203,10 +205,10 @@ def combine_act_cell(act_df, cdf, by="resp"):
     )
 
 
-def agg_by_trial_unit(act_df, cdf, by="resp"):
+def agg_by_trial_unit(act_df, cdf, by_col="resp"):
     by_trial = []
     by_unit = []
-    for by, by_df in cdf.groupby(by, observed=True):
+    for by, by_df in cdf.groupby(by_col, observed=True):
         dat_df = combine_act_cell(act_df, by_df)
         assert len(dat_df) <= len(act_df)
         by_unit.append(
