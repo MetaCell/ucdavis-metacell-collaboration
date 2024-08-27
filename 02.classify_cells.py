@@ -203,6 +203,45 @@ def combine_act_cell(act_df, cdf, by="resp"):
     )
 
 
+def agg_by_trial_unit(act_df, cdf, by="resp"):
+    by_trial = []
+    by_unit = []
+    for by, by_df in cdf.groupby(by, observed=True):
+        dat_df = combine_act_cell(act_df, by_df)
+        assert len(dat_df) <= len(act_df)
+        by_unit.append(
+            dat_df.groupby(
+                [
+                    "cls_var",
+                    "animal",
+                    "session",
+                    "unit_id",
+                    "uid",
+                    "resp",
+                    "evt",
+                    "frame",
+                ],
+                observed=True,
+                sort=False,
+            )["value"]
+            .mean()
+            .reset_index()
+        )
+        by_trial.append(
+            dat_df.groupby(
+                ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
+                observed=True,
+                sort=False,
+            )["value"]
+            .mean()
+            .reset_index()
+        )
+    by_trial, by_unit = pd.concat(by_trial, ignore_index=True), pd.concat(
+        by_unit, ignore_index=True
+    )
+    return by_trial, by_unit
+
+
 def plot_raster(dat_df, by="resp", y="uid"):
     fig = imshow(
         dat_df,
@@ -248,13 +287,18 @@ cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
 cell_df_plt["resp"] = (
     cell_df_plt["evt"].astype(str) + "-" + cell_df_plt["resp"].astype(str)
 ).astype("category")
-evt_dict = {
-    "single_evt": cell_df_plt.sort_values(
-        ["cls_var", "animal", "session", "resp", "zval"]
-    ).set_index(["cls_var", "animal", "session"]),
-    "compound_evt": cell_cls_df.sort_values(["cls_var", "animal", "session", "cls"])
+cell_df_plt = cell_df_plt.sort_values(
+    ["cls_var", "animal", "session", "resp", "zval"]
+).set_index(["cls_var", "animal", "session"])
+cell_cls_df_plt = (
+    cell_cls_df[cell_cls_df["cls"] != "non-responsive"]
+    .sort_values(["cls_var", "animal", "session", "cls"])
     .rename(columns={"cls": "resp"})
-    .set_index(["cls_var", "animal", "session"]),
+    .set_index(["cls_var", "animal", "session"])
+)
+evt_dict = {
+    "single_evt": cell_df_plt,
+    "compound_evt": cell_cls_df_plt,
 }
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
@@ -263,32 +307,8 @@ for evt_type, evt_dat in evt_dict.items():
         ["cls_var", "animal", "session"], observed=True
     ):
         cdf = evt_dat.loc[cls_var, anm, ss]
-        dat_df = combine_act_cell(act_df, cdf)
-        dat_dict = {
-            "by_unit": dat_df.groupby(
-                [
-                    "cls_var",
-                    "animal",
-                    "session",
-                    "unit_id",
-                    "uid",
-                    "resp",
-                    "evt",
-                    "frame",
-                ],
-                observed=True,
-                sort=False,
-            )["value"]
-            .mean()
-            .reset_index(),
-            "by_trial": dat_df.groupby(
-                ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
-                observed=True,
-                sort=False,
-            )["value"]
-            .mean()
-            .reset_index(),
-        }
+        by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
+        dat_dict = {"by_unit": by_unit, "by_trial": by_trial}
         for act_type, dat in dat_dict.items():
             fpath = os.path.join(fig_path, act_type)
             os.makedirs(fpath, exist_ok=True)
@@ -309,32 +329,8 @@ for evt_type, evt_dat in evt_dict.items():
             plt.close(fig_agg)
     for cls_var, act_df in act_zs.groupby("cls_var", observed=True):
         cdf = evt_dat.loc[cls_var].reset_index()
-        dat_df = combine_act_cell(act_df, cdf)
-        dat_dict = {
-            "by_unit": dat_df.groupby(
-                [
-                    "cls_var",
-                    "animal",
-                    "session",
-                    "unit_id",
-                    "uid",
-                    "resp",
-                    "evt",
-                    "frame",
-                ],
-                observed=True,
-                sort=False,
-            )["value"]
-            .mean()
-            .reset_index(),
-            "by_trial": dat_df.groupby(
-                ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
-                observed=True,
-                sort=False,
-            )["value"]
-            .mean()
-            .reset_index(),
-        }
+        by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
+        dat_dict = {"by_unit": by_unit, "by_trial": by_trial}
         for act_type, dat in dat_dict.items():
             fpath = os.path.join(fig_path, act_type)
             os.makedirs(fpath, exist_ok=True)
@@ -400,7 +396,7 @@ for (cls, anm, ss), act_df in act_cls.groupby(
         z="value",
         colorscale="viridis",
         zmin=0,
-        zmax=dat_df["value"].quantile(0.98),
+        zmax=act_df["value"].quantile(0.98),
         showscale=False,
         subplot_args={
             "shared_xaxes": "columns",
