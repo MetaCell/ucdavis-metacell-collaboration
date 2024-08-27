@@ -304,12 +304,16 @@ evt_dict = {
 }
 fig_path = os.path.join(FIG_PATH, "raster")
 os.makedirs(fig_path, exist_ok=True)
+by_unit_df = []
+by_trial_df = []
 for evt_type, evt_dat in evt_dict.items():
     for (cls_var, anm, ss), act_df in act_zs.groupby(
         ["cls_var", "animal", "session"], observed=True
     ):
         cdf = evt_dat.loc[cls_var, anm, ss]
         by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
+        by_unit_df.append(by_unit)
+        by_trial_df.append(by_trial)
         dat_dict = {"by_unit": by_unit, "by_trial": by_trial}
         for act_type, dat in dat_dict.items():
             fpath = os.path.join(fig_path, act_type)
@@ -329,24 +333,23 @@ for evt_type, evt_dat in evt_dict.items():
                 )
             )
             plt.close(fig_agg)
-    for cls_var, act_df in act_zs.groupby("cls_var", observed=True):
-        cdf = evt_dat.loc[cls_var].reset_index()
-        by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
-        dat_dict = {"by_unit": by_unit, "by_trial": by_trial}
-        for act_type, dat in dat_dict.items():
-            fpath = os.path.join(fig_path, act_type)
-            os.makedirs(fpath, exist_ok=True)
-            fig = plot_raster(dat, y="uid" if act_type == "by_unit" else "trial")
-            fig.write_html(
-                os.path.join(fpath, "all-all-by{}-{}.html".format(cls_var, evt_type))
-            )
-            fig_agg = plot_agg_curve(
-                dat, show_individual=False if act_type == "by_unit" else True
-            )
-            fig_agg.savefig(
-                os.path.join(fpath, "all-all-by{}-{}.svg".format(cls_var, evt_type))
-            )
-            plt.close(fig_agg)
+by_unit_df = pd.concat(by_unit_df, ignore_index=True)
+by_trial_df = pd.concat(by_trial_df, ignore_index=True)
+for act_type, act_df in {"by_unit": by_unit_df, "by_trial": by_trial_df}:
+    for cls_var, dat in act_df.groupby("cls_var", observed=True):
+        fpath = os.path.join(fig_path, act_type)
+        os.makedirs(fpath, exist_ok=True)
+        fig = plot_raster(dat, y="uid" if act_type == "by_unit" else "trial")
+        fig.write_html(
+            os.path.join(fpath, "all-all-by{}-{}.html".format(cls_var, evt_type))
+        )
+        fig_agg = plot_agg_curve(
+            dat, show_individual=False if act_type == "by_unit" else True
+        )
+        fig_agg.savefig(
+            os.path.join(fpath, "all-all-by{}-{}.svg".format(cls_var, evt_type))
+        )
+        plt.close(fig_agg)
 
 
 # %% generate trial avg activity with cell class
