@@ -335,7 +335,7 @@ for evt_type, evt_dat in evt_dict.items():
             plt.close(fig_agg)
 by_unit_df = pd.concat(by_unit_df, ignore_index=True)
 by_trial_df = pd.concat(by_trial_df, ignore_index=True)
-for act_type, act_df in {"by_unit": by_unit_df, "by_trial": by_trial_df}:
+for act_type, act_df in {"by_unit": by_unit_df, "by_trial": by_trial_df}.items():
     for cls_var, dat in act_df.groupby("cls_var", observed=True):
         fpath = os.path.join(fig_path, act_type)
         os.makedirs(fpath, exist_ok=True)
@@ -376,7 +376,7 @@ for (cls_var, anm, ss), act_df in act_agg.groupby(
     cdf = cell_cls_df_plt.loc[cls_var, anm, ss]
     act_df = (
         act_df.merge(cdf, on="unit_id", how="left")
-        .groupby("cls")
+        .groupby("cls", observed=True)
         .apply(reset_uid, include_groups=False)
         .reset_index()
         .sort_values("evt", key=lambda evts: [PARAM_EVT_ORD.index(e) for e in evts])
