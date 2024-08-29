@@ -268,19 +268,30 @@ def plot_raster(dat_df, by="resp", y="uid"):
 
 
 def plot_agg_curve(dat_df, by="resp", hue="trial", show_individual=False):
+    if show_individual:
+        dat_df = dat_df.astype({hue: "category"})
     g = sns.FacetGrid(
         dat_df,
         row=by,
         col="evt",
+        col_order=PARAM_EVT_ORD,
         margin_titles=True,
         sharex="row",
         sharey="row",
     )
     if show_individual:
         g.map_dataframe(
-            sns.lineplot, x="frame", y="value", hue=hue, errorbar=None, alpha=0.5
+            sns.lineplot, x="frame", y="value", hue=hue, errorbar=None, alpha=0.85
         )
-    g.map_dataframe(sns.lineplot, x="frame", y="value", estimator="mean", errorbar="se")
+    g.map_dataframe(
+        sns.lineplot,
+        x="frame",
+        y="value",
+        estimator="mean",
+        errorbar="se",
+        color="black",
+        lw=2.5,
+    )
     g.add_legend()
     return g.figure
 
