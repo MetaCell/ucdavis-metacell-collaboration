@@ -40,7 +40,7 @@ for dsfile in os.listdir(OUT_PATH):
     fig_path = os.path.join(FIG_FOLDER, "{}-{}".format(anm, ss))
     os.makedirs(fig_path, exist_ok=True)
     uid_segs = np.array_split(
-        act_ds.coords["unit_id"], int(act_ds.sizes["unit_id"] / plt_ncell)
+        act_ds.coords["unit_id"], int(np.ceil(act_ds.sizes["unit_id"] / plt_ncell))
     )
     for varname, iuid in itt.product(act_ds.var(), range(len(uid_segs))):
         uids = uid_segs[iuid]
