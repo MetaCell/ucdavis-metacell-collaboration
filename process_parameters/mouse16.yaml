@@ -1,0 +1,8 @@
+seeds_merge:
+  noise_freq: 0.03
+  thres_corr: 0.8
+  thres_dist: 7
+subset:
+   width: !!python/tuple
+    - 200
+    - 1200
