@@ -4,7 +4,7 @@ script to run minian pipeline on datasets
 env: environments/generic.yml
 """
 
-from ds_utils.minian_pipeline.process import minian_process_batch
+from minian.pipeline import minian_process_batch
 
 if __name__ == "__main__":
     minian_process_batch(
