@@ -19,7 +19,7 @@ def load_datasets(
     for idxs, ss_dat in ssmap.iterrows():
         if meta_only:
             yield idxs
-        dat_path = os.path.dirname(ss_dat["data"])
+        dat_path = ss_dat["data"]
         try:
             gpio = pd.read_csv(os.path.join(dpath, dat_path, "gpio.csv")).rename(
                 columns={
