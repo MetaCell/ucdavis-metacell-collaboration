@@ -321,7 +321,11 @@ for evt_type, evt_dat in evt_dict.items():
     for (cls_var, anm, ss), act_df in act_zs.groupby(
         ["cls_var", "animal", "session"], observed=True
     ):
-        cdf = evt_dat.loc[cls_var, anm, ss]
+        try:
+            cdf = evt_dat.loc[cls_var, anm, ss]
+        except KeyError:
+            print("missing events for {}, anm {} ss {}".format(cls_var, anm, ss))
+            continue
         by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
         by_unit_df.append(by_unit)
         by_trial_df.append(by_trial)

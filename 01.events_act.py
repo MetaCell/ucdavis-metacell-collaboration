@@ -35,7 +35,11 @@ for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
 # %% plotting
 plt_ncell = 8
 for dsfile in os.listdir(OUT_PATH):
-    act_ds = xr.open_dataset(os.path.join(OUT_PATH, dsfile))
+    try:
+        act_ds = xr.open_dataset(os.path.join(OUT_PATH, dsfile))
+    except ValueError:
+        print("unable to open {}, skipping".format(dsfile))
+        continue
     anm, ss = os.path.splitext(dsfile)[0].split("-")
     fig_path = os.path.join(FIG_FOLDER, "{}-{}".format(anm, ss))
     os.makedirs(fig_path, exist_ok=True)
