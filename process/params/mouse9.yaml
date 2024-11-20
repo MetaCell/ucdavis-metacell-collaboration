@@ -1,0 +1,20 @@
+seeds_init:
+  diff_thres: 10
+  max_wnd: !!python/tuple
+    - 30
+    - 40
+  method: rolling
+  stp_size: 12000
+  wnd_size: 24000
+seeds_merge:
+  noise_freq: 0.03
+  thres_corr: 0.8
+  thres_dist: 7
+initialize:
+  noise_freq: 0.03
+  thres_corr: 0.65
+  wnd: 2
+subset:
+   width: !!python/tuple
+    - 300
+    - 1200

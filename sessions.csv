@@ -1,5 +1,4 @@
 animal,session,data,group,params
-mouse7,TFC_long,TFC_120sec/mouse7/mouse7_20240203-100046_TFClong,control,
 mouse1,TFC,TFC_20sec/mouse1/mouse1_20240112-141201_TFCday,control,
 mouse2,TFC,TFC_20sec/mouse2/mouse2_20240114-105916_TFC,control,mouse2.yaml
 mouse21,TFC,TFC_20sec/mouse21/mouse21_20240328-093022_TFC,control,mouse21.yaml
@@ -16,3 +15,9 @@ mouse24,TFC,THmice/mouse24/mouse24_20240402-112630_THmice,LClesion,mouse24.yaml
 mouse28,TFC,THmice/mouse28/mouse28_20240403-113310_THmice,LClesion,mouse28.yaml
 mouse12,TFC,THmice/mouse12/mouse12_20240219-094646_TFC_TH-Cre,LClesion,
 mouse13,TFC,THmice/mouse13/mouse13_20240221-094412,LClesion,
+mouse8,TFC_long,TFC_120sec/mouse8/mouse8_20240204-083211_TFClong,TFClong,mouse8.yaml
+mouse23,TFC_long,TFC_120sec/mouse23/mouse23_20240401-091648_TFClong,TFClong,mouse23.yaml
+mouse20,TFC_long,TFC_120sec/mouse20/mouse20_20240320-105024_TFClong,TFClong,mouse20.yaml
+mouse9,TFC_long,TFC_120sec/mouse9/mouse9_20240207-092238_TFClong,TFClong,mouse9.yaml
+mouse19,TFC_long,TFC_120sec/mouse19/mouse19_20240319-104623_TFClong,TFClong,mouse19.yaml
+mouse18,TFC_long,TFC_120sec/mouse18/mouse18_20240318-092526_TFClong,TFClong,mouse18.yaml
