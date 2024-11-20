@@ -84,25 +84,30 @@ def classify_cell(cdf, evt_col="evt", zval_col="zval"):
 cell_df_all = []
 cell_cls_df_all = []
 act_zs_all = []
-for (anm, ss), (gpio, ts, ps_ds) in load_datasets():
+for (anm, ss), (gpio, ts, ps_ds, ss_info) in load_datasets():
     for cls_var in ["C", "S"]:
         act_ds = xr.open_dataset(os.path.join(IN_EVT, "{}-{}.nc".format(anm, ss)))
         act_df = act_ds[cls_var].rename("value").to_dataframe().dropna().reset_index()
         act_df["cls_var"] = cls_var
+        act_df["group"] = ss_info["group"]
         act_zs = (
-            act_df.groupby(["cls_var", "animal", "session", "unit_id", "trial"])
+            act_df.groupby(
+                ["cls_var", "group", "animal", "session", "unit_id", "trial"]
+            )
             .apply(zs_part, include_groups=False)
             .reset_index()
         )
         cell_df = (
-            act_zs.groupby(["cls_var", "animal", "session", "unit_id", "evt"])["value"]
+            act_zs.groupby(["cls_var", "group", "animal", "session", "unit_id", "evt"])[
+                "value"
+            ]
             .mean()
             .rename("zval")
             .reset_index()
         )
         cell_df["resp"] = cell_df["zval"].map(thres_resp)
         cell_cls_df = (
-            cell_df.groupby(["cls_var", "animal", "session", "unit_id"])
+            cell_df.groupby(["cls_var", "group", "animal", "session", "unit_id"])
             .apply(classify_cell, include_groups=False)
             .rename("cls")
             .reset_index()
@@ -318,8 +323,8 @@ os.makedirs(fig_path, exist_ok=True)
 by_unit_df = []
 by_trial_df = []
 for evt_type, evt_dat in evt_dict.items():
-    for (cls_var, anm, ss), act_df in act_zs.groupby(
-        ["cls_var", "animal", "session"], observed=True
+    for (cls_var, grp, anm, ss), act_df in act_zs.groupby(
+        ["cls_var", "group", "animal", "session"], observed=True
     ):
         try:
             cdf = evt_dat.loc[cls_var, anm, ss]
@@ -327,6 +332,8 @@ for evt_type, evt_dat in evt_dict.items():
             print("missing events for {}, anm {} ss {}".format(cls_var, anm, ss))
             continue
         by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
+        by_trial["group"] = grp
+        by_unit["group"] = grp
         by_unit_df.append(by_unit)
         by_trial_df.append(by_trial)
         dat_dict = {"by_unit": by_unit, "by_trial": by_trial}
@@ -351,18 +358,18 @@ for evt_type, evt_dat in evt_dict.items():
 by_unit_df = pd.concat(by_unit_df, ignore_index=True)
 by_trial_df = pd.concat(by_trial_df, ignore_index=True)
 for act_type, act_df in {"by_unit": by_unit_df, "by_trial": by_trial_df}.items():
-    for cls_var, dat in act_df.groupby("cls_var", observed=True):
+    for (cls_var, grp), dat in act_df.groupby(["cls_var", "group"], observed=True):
         fpath = os.path.join(fig_path, act_type)
         os.makedirs(fpath, exist_ok=True)
         fig = plot_raster(dat, y="uid" if act_type == "by_unit" else "trial")
         fig.write_html(
-            os.path.join(fpath, "all-all-by{}-{}.html".format(cls_var, evt_type))
+            os.path.join(fpath, "{}-all-by{}-{}.html".format(grp, cls_var, evt_type))
         )
         fig_agg = plot_agg_curve(
             dat, show_individual=False if act_type == "by_unit" else True
         )
         fig_agg.savefig(
-            os.path.join(fpath, "all-all-by{}-{}.svg".format(cls_var, evt_type))
+            os.path.join(fpath, "{}-all-by{}-{}.svg".format(grp, cls_var, evt_type))
         )
         plt.close(fig_agg)
 
@@ -445,3 +452,17 @@ for (cls, anm), act_df in act_cls.groupby(["cls_var", "animal"], observed=True):
     g.map_dataframe(sns.lineplot, x="frame", y="value", estimator="mean", errorbar="se")
     g.add_legend()
     g.figure.savefig(os.path.join(fig_path, "{}-agg-by{}.svg".format(anm, cls)))
+for (cls, grp), act_df in act_cls.groupby(["cls_var", "group"], observed=True):
+    plt_df = act_df[act_df["evt"].map(lambda e: e.startswith("post-shock"))]
+    g = sns.FacetGrid(
+        plt_df,
+        row="session",
+        col="cls",
+        hue="evt",
+        margin_titles=True,
+        sharex="row",
+        sharey="row",
+    )
+    g.map_dataframe(sns.lineplot, x="frame", y="value", estimator="mean", errorbar="se")
+    g.add_legend()
+    g.figure.savefig(os.path.join(fig_path, "{}-agg-by{}.svg".format(grp, cls)))

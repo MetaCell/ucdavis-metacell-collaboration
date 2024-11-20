@@ -51,7 +51,7 @@ def load_datasets(
                 warnings.warn("Missing Processed data. Skipping {}".format(idxs))
                 continue
             ps_ds = ps_ds.assign_coords(ts=("frame", ts.values))
-        yield idxs, (gpio, ts, ps_ds)
+        yield idxs, (gpio, ts, ps_ds, ss_dat)
 
 
 def parse_gpio(gpio, chn_name=" GPIO-1", dig_thres=3e4, dur_map=DUR_MAP):
