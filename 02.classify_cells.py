@@ -118,6 +118,7 @@ for (anm, ss), (gpio, ts, ps_ds, ss_info) in load_datasets():
 cell_df = pd.concat(cell_df_all, ignore_index=True).astype(
     {
         "cls_var": "category",
+        "group": "category",
         "animal": "category",
         "session": "category",
         "unit_id": "category",
@@ -127,6 +128,7 @@ cell_df = pd.concat(cell_df_all, ignore_index=True).astype(
 cell_cls_df = pd.concat(cell_cls_df_all, ignore_index=True).astype(
     {
         "cls_var": "category",
+        "group": "category",
         "animal": "category",
         "session": "category",
         "unit_id": "category",
@@ -136,6 +138,7 @@ cell_cls_df = pd.concat(cell_cls_df_all, ignore_index=True).astype(
 act_zs = pd.concat(act_zs_all, ignore_index=True).astype(
     {
         "cls_var": "category",
+        "group": "category",
         "animal": "category",
         "session": "category",
         "unit_id": "category",
@@ -150,6 +153,7 @@ act_zs.to_feather(os.path.join(INT_PATH, "act_zs.feat"))
 # %% plot cell counts for single events
 fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
+cell_df = pd.read_feather(os.path.join(INT_PATH, "cell_df.feat"))
 cell_df_agg = (
     cell_df.groupby(["animal", "session", "evt", "resp", "cls_var"], observed=True)[
         "unit_id"
@@ -170,6 +174,7 @@ for (anm, ss, cls_var), subdf in cell_df_agg.groupby(
 # %% plot cell counts for compound events
 fig_path = os.path.join(FIG_PATH, "cell_counts")
 os.makedirs(fig_path, exist_ok=True)
+cell_cls_df = pd.read_feather(os.path.join(INT_PATH, "cell_cls_df.feat"))
 cell_cls_agg = (
     cell_cls_df.groupby(["cls_var", "animal", "session", "cls"], observed=True)[
         "unit_id"
@@ -220,6 +225,7 @@ def agg_by_trial_unit(act_df, cdf, by_col="resp"):
             dat_df.groupby(
                 [
                     "cls_var",
+                    "group",
                     "animal",
                     "session",
                     "unit_id",
@@ -236,7 +242,16 @@ def agg_by_trial_unit(act_df, cdf, by_col="resp"):
         )
         by_trial.append(
             dat_df.groupby(
-                ["cls_var", "animal", "session", "trial", "resp", "evt", "frame"],
+                [
+                    "cls_var",
+                    "group",
+                    "animal",
+                    "session",
+                    "trial",
+                    "resp",
+                    "evt",
+                    "frame",
+                ],
                 observed=True,
                 sort=False,
             )["value"]
@@ -301,6 +316,9 @@ def plot_agg_curve(dat_df, by="resp", hue="trial", show_individual=False):
     return g.figure
 
 
+cell_df = pd.read_feather(os.path.join(INT_PATH, "cell_df.feat"))
+cell_cls_df = pd.read_feather(os.path.join(INT_PATH, "cell_cls_df.feat"))
+act_zs = pd.read_feather(os.path.join(INT_PATH, "act_zs.feat"))
 cell_df_plt = cell_df[cell_df["resp"] == "activated"].copy()
 cell_df_plt["resp"] = (
     cell_df_plt["evt"].astype(str) + "-" + cell_df_plt["resp"].astype(str)
@@ -332,8 +350,6 @@ for evt_type, evt_dat in evt_dict.items():
             print("missing events for {}, anm {} ss {}".format(cls_var, anm, ss))
             continue
         by_trial, by_unit = agg_by_trial_unit(act_df, cdf)
-        by_trial["group"] = grp
-        by_unit["group"] = grp
         by_unit_df.append(by_unit)
         by_trial_df.append(by_trial)
         dat_dict = {"by_unit": by_unit, "by_trial": by_trial}
@@ -381,6 +397,8 @@ def reset_uid(df):
     return df
 
 
+cell_cls_df = pd.read_feather(os.path.join(INT_PATH, "cell_cls_df.feat"))
+act_zs = pd.read_feather(os.path.join(INT_PATH, "act_zs.feat"))
 act_agg = (
     act_zs.groupby(
         ["cls_var", "animal", "session", "unit_id", "evt", "frame"], observed=True
