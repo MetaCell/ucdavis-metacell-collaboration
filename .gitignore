@@ -166,3 +166,4 @@ cython_debug/
 /intermediate
 /process/*
 !/process/params
+/figs/cell_classification/raster/**/*.html
