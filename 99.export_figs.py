@@ -12,7 +12,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import statsmodels.api as sm
 from matplotlib.transforms import blended_transform_factory
+from scipy.stats import ttest_rel
+from statannotations.Annotator import Annotator
+from statannotations.stats.StatTest import StatTest
+from statsmodels.formula.api import ols
 from tqdm.auto import tqdm
 
 IN_PATH = "./intermediate/classify_cells"
@@ -147,6 +152,13 @@ def concat_lineplot(data, fm_map, color=None, **kwargs):
         )
 
 
+def paired_tt(a, b):
+    try:
+        return ttest_rel(a, b)
+    except ValueError:
+        return ttest_rel(a, a)
+
+
 # %% aggregate data
 cell_df = pd.read_feather(os.path.join(IN_PATH, "cell_df.feat"))
 cell_cls_df = pd.read_feather(os.path.join(IN_PATH, "cell_cls_df.feat"))
@@ -219,3 +231,108 @@ for evt_type, by_type in itt.product(
             os.path.join(fig_path, "{}-{}-{}.svg".format(evt_type, by_type, cls_var))
         )
         plt.close(fig)
+
+
+# %% plot summary stats
+def run_tt(data, color=None, hue_order=None):
+    ax = plt.gca()
+    pairs = []
+    for (e, g), _ in data.groupby(["evt", "group"], observed=True):
+        if e != "baseline":
+            pairs.append(((e, g), ("baseline", g)))
+    hue_order = [h for h in hue_order if h in data["group"].unique()]
+    annt = Annotator(
+        ax,
+        pairs=pairs,
+        data=data,
+        x="evt",
+        y="value",
+        hue="group",
+        order=list(PARAM_EVTS.keys()),
+        hue_order=hue_order,
+    )
+    annt.configure(
+        test=StatTest(paired_tt, "Paired T-test", "t-test_paired"),
+        comparisons_correction="Bonferroni",
+        text_format="star",
+        loc="inside",
+        verbose=0,
+        hide_non_significant=True,
+    )
+    annt.apply_test().annotate(line_offset_to_group=0.1, line_offset=0.1)
+
+
+def run_anova(data, color=None):
+    ax = plt.gca()
+    model = ols("value ~ C(evt) * C(group)", data=data[data["evt"] != "baseline"]).fit()
+    anv = sm.stats.anova_lm(model, typ=3)
+    ax.text(
+        -0.06,
+        0.5,
+        anv,
+        transform=ax.transAxes,
+        fontfamily="monospace",
+        fontsize=13,
+        ha="right",
+        va="center",
+    )
+
+
+fig_path = os.path.join(FIG_PATH, "summary_stats")
+os.makedirs(fig_path, exist_ok=True)
+for evt_type, by_type in itt.product(
+    ["single_evt", "compound_evt"], ["by_unit", "by_trial"]
+):
+    dat_df = pd.read_feather(
+        os.path.join(INT_PATH, "{}-{}.feat".format(by_type, evt_type))
+    )
+    react_df = (
+        dat_df.groupby(["cls_var", "group", "animal", "resp", "evt"], observed=True)[
+            "value"
+        ]
+        .mean()
+        .reset_index()
+    )
+    hue_ord = list(react_df["group"].unique())
+    for cls_var, subdf in react_df.groupby("cls_var", observed=False):
+        g = sns.FacetGrid(
+            subdf,
+            row="resp",
+            height=4.5,
+            aspect=5,
+            margin_titles=True,
+            sharey=False,
+            sharex=False,
+        )
+        g.map_dataframe(
+            sns.barplot,
+            x="evt",
+            y="value",
+            hue="group",
+            palette="tab10",
+            saturation=0.6,
+            errorbar="se",
+            order=list(PARAM_EVTS.keys()),
+            hue_order=hue_ord,
+        )
+        g.map_dataframe(
+            sns.swarmplot,
+            x="evt",
+            y="value",
+            hue="group",
+            palette="tab10",
+            edgecolor="auto",
+            linewidth=0.8,
+            size=4,
+            dodge=True,
+            order=list(PARAM_EVTS.keys()),
+            hue_order=hue_ord,
+        )
+        g.map_dataframe(run_tt, hue_order=hue_ord)
+        g.map_dataframe(run_anova)
+        g.add_legend()
+        g.tight_layout()
+        g.figure.savefig(
+            os.path.join(fig_path, "{}-{}-{}.svg".format(evt_type, by_type, cls_var))
+        )
+        plt.close(g.figure)
