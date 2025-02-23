@@ -161,4 +161,5 @@ g.map_dataframe(
 g.add_legend()
 for ax in g.axes.flat:
     plt.setp(ax.get_xticklabels(), rotation=45)
+g.tight_layout()
 g.figure.savefig(os.path.join(figpath, "summary.svg"))
