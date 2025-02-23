@@ -5,3 +5,4 @@ dependencies:
   - statannotations
   - jupyter
   - pdm
+  - cf_xarray
